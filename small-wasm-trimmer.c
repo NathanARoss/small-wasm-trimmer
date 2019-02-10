@@ -1,5 +1,7 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 //decode a 32 but unsigned integer according to the LEB128 encoding
 unsigned int readVaruint(FILE *in, FILE *out) {
@@ -23,16 +25,39 @@ unsigned int readVaruint(FILE *in, FILE *out) {
     return result;
 }
 
-int main() {
+int main(int argc, char **argv) {
     //stdin and stdout must be files because we are processing binary data
     if (isatty(fileno(stdin))) {
         fputs("Use the < operator to redirect a .wasm file to stdin\n", stderr);
-        return -1;
     }
 
     if (isatty(fileno(stdout))) {
         fputs("Use the > operator to redirect stdout to a .wasm file\n", stderr);
+    }
+
+    if (isatty(fileno(stdin)) || isatty(fileno(stdout))) {
         return -1;
+    }
+
+    int sectionsToIgnore = 0;
+    int argumentType = 0;
+    for (int i = 0; i < argc; ++i) {
+        if (strcmp(argv[i], "--remove-sections") == 0) {
+            argumentType = 1;
+            sectionsToIgnore |= 1 << 31;
+            continue;
+        }
+
+        if (argumentType == 1) {
+            //any non-integer inputs will be treated as section 0 (custom)
+            int section = atoi(argv[i]);
+            sectionsToIgnore |= 1 << section;
+        }
+    }
+
+    if (sectionsToIgnore == 0) {
+        //if the "--remove-sections" argument is missing, remove the custom section
+        sectionsToIgnore = 1;
     }
 
     int header[2];
@@ -53,7 +78,7 @@ int main() {
         }
 
         //skip over custom sections
-        if (sectionCode == 0) {
+        if ((sectionsToIgnore & (1 << sectionCode)) != 0) {
             const unsigned int sectionSize = readVaruint(stdin, (FILE*) 0);
             fseek(stdin, sectionSize, SEEK_CUR);
         } else {
