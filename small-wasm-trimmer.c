@@ -39,12 +39,14 @@ int main(int argc, char **argv) {
         return -1;
     }
 
-    int sectionsToIgnore = 0;
+    //remove section 0 by default
+    int sectionsToIgnore = 1;
+
     int argumentType = 0;
     for (int i = 0; i < argc; ++i) {
         if (strcmp(argv[i], "--remove-sections") == 0) {
             argumentType = 1;
-            sectionsToIgnore |= 1 << 31;
+            sectionsToIgnore = 0;
             continue;
         }
 
@@ -53,11 +55,6 @@ int main(int argc, char **argv) {
             int section = atoi(argv[i]);
             sectionsToIgnore |= 1 << section;
         }
-    }
-
-    if (sectionsToIgnore == 0) {
-        //if the "--remove-sections" argument is missing, remove the custom section
-        sectionsToIgnore = 1;
     }
 
     int header[2];
